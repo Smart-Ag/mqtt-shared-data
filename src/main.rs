@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Mutex};
 use dashmap::DashMap;
 
-fn foo(payload: Arc<Vec<u8>>)
+fn foo(payload: Arc<Vec<u8>>, shared: i32)
 // fn foo(payload: String)
 {
-    println!("Got foo message: {:?}", payload);
+    println!("Got foo message: {:?}, {:?}", payload, shared);
 }
 fn bar(payload: Arc<Vec<u8>>)
 // fn bar(payload: String)
@@ -66,21 +66,31 @@ impl Comm {
     
 }
 struct Application<'a> {
-    comm: &'a mut Comm
+    comm: &'a mut Comm,
+    shared_data: Arc<RwLock<i32>>
 }
 impl<'a> Application<'a> {
     pub fn new(comm: &'a mut Comm) -> Self
     {
         Application {
-            comm
+            comm,
+            shared_data: Arc::new(RwLock::new(0))
         }
     }
     pub fn setup(&mut self)
     {
-        self.comm.subscribe("hello/foo".to_string(), Box::new(& |payload| {
-            foo(payload);
-        }) );
-        self.comm.subscribe("hello/bar".to_string(), Box::new(&bar));
+        let shared_ref = self.shared_data.clone();
+        self.comm.subscribe("hello/foo".to_string(), Box::new(move |payload| {
+            let shared = shared_ref.read().unwrap();
+            foo(payload, *shared);
+        }));
+
+        let shared_ref = self.shared_data.clone();
+        self.comm.subscribe("hello/bar".to_string(), Box::new(move |payload| {
+            let mut shared = shared_ref.write().unwrap();
+            *shared += 1;
+            bar(payload);
+        }));
     }
 }
 fn main() 
@@ -92,57 +102,4 @@ fn main()
     loop {
         thread::park();
     }
-    // mqtt_client.subscribe("hello/foo", QoS::AtLeastOnce).unwrap();
-    // mqtt_client.subscribe("hello/bar", QoS::AtLeastOnce).unwrap();
-    // let sleep_time = Duration::from_secs(1);
-    // thread::spawn(move || {
-    //     for i in 0..100 {
-    //         let payload = format!("publish {}", i);
-    //         thread::sleep(sleep_time);
-    //         mqtt_client.publish("hello/world", QoS::AtLeastOnce, false, payload).unwrap();
-    //     }
-    // });
-
-    // let mut callbacks: HashMap<String, fn(Arc<Vec<u8>>) -> ()> = HashMap::new();
-    // callbacks.insert("hello/foo".to_string(), foo);
-    // callbacks.insert("hello/bar".to_string(), bar);
-
-    // for notification in notifications {
-    //     match notification {
-    //         Notification::Publish(msg) => {
-    //             let topic = msg.topic_name;
-    //             // callbacks.get(topic).map(|cb| cb(msg.payload));
-    //             match callbacks.get(&topic)
-    //             {
-    //                 Some(cb) => cb(msg.payload),
-    //                 None => {
-    //                     println!("Topic not in list of callbacks");
-    //                     continue;
-    //                 }
-    //             }
-    //         }
-    //         _ => println!("Ignoring notification")
-    //     }
-    // }
 }
-// use boxfnonce::SendBoxFnOnce;
-// // type  Callback = SendBoxFnOnce<'static, Arc<Vec<u8>>, ()>;
-// // type  Callback = SendBoxFnOnce<'static, String, ()>;
-// type Callback = Box<dyn Send + Sync + Fn(String) + 'static>;
-// fn main() {
-//     let callbacks = Arc::new(DashMap::<String, Callback>::new());
-//     let cb = callbacks.clone();
-//     thread::spawn(move || {
-//         for i in 1..10
-//         {
-//             cb.get("hello/foo").map(|f| f("foo.bar".to_string()));
-//             thread::sleep(Duration::from_millis(1000));
-//         }
-//     });
-
-//     {
-//         let cb2 = callbacks.clone();
-//         callbacks.insert("hello/foo".to_string(), Box::new(foo));
-//         callbacks.insert("hello/bar".to_string(), Box::new(bar));
-//     }
-// }
