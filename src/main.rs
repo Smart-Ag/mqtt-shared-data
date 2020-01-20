@@ -5,12 +5,10 @@ use std::sync::{Arc, RwLock, Mutex};
 use dashmap::DashMap;
 
 fn foo(payload: Arc<Vec<u8>>, shared: i32)
-// fn foo(payload: String)
 {
     println!("Got foo message: {:?}, {:?}", payload, shared);
 }
 fn bar(payload: Arc<Vec<u8>>)
-// fn bar(payload: String)
 {
     println!("Got bar message: {:?}", payload);
 }
@@ -55,12 +53,12 @@ impl Comm {
             callbacks: callbacks
         }
     }
-    pub fn subscribe(&mut self, topic: String, callback: CallbackType)
+    pub fn subscribe<F: Send + Sync +'static + Fn(Arc<Vec<u8>>)>(&mut self, topic: String, callback: F)
     {
         println!("Subscribng to {}", topic);
         let callbacks = self.callbacks.clone();
         let mut callbacks = callbacks.write().unwrap();
-        callbacks.insert(topic.clone(), callback);
+        callbacks.insert(topic.clone(), Box::new(callback));
         self.client.subscribe(topic, QoS::AtLeastOnce).unwrap();
     }
     
@@ -80,17 +78,17 @@ impl<'a> Application<'a> {
     pub fn setup(&mut self)
     {
         let shared_ref = self.shared_data.clone();
-        self.comm.subscribe("hello/foo".to_string(), Box::new(move |payload| {
+        self.comm.subscribe("hello/foo".to_string(), move |payload| {
             let shared = shared_ref.read().unwrap();
             foo(payload, *shared);
-        }));
+        });
 
         let shared_ref = self.shared_data.clone();
-        self.comm.subscribe("hello/bar".to_string(), Box::new(move |payload| {
+        self.comm.subscribe("hello/bar".to_string(), move |payload| {
             let mut shared = shared_ref.write().unwrap();
             *shared += 1;
             bar(payload);
-        }));
+        });
     }
 }
 fn main() 
