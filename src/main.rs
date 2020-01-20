@@ -1,7 +1,7 @@
 use rumqtt::{MqttClient, MqttOptions, QoS, Notification};
-use std::{thread, time::Duration};
+use std::{thread};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Mutex};
+use std::sync::{Arc, RwLock};
 use dashmap::DashMap;
 
 fn foo(payload: Arc<Vec<u8>>, shared: i32)
