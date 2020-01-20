@@ -1,0 +1,13 @@
+[package]
+name = "mqtt-test"
+version = "0.1.0"
+authors = ["Thomas Antony <thomas.antony@ravenind.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rumqtt = "0.31.0"
+dashmap = "3.2.1"
+crossbeam-channel = "0.3.9"
+boxfnonce = "0.1.1"
