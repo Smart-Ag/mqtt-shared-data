@@ -4,15 +4,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use dashmap::DashMap;
 
-fn foo(payload: Arc<Vec<u8>>, shared: i32)
-{
-    println!("Got foo message: {:?}, {:?}", payload, shared);
-}
-fn bar(payload: Arc<Vec<u8>>)
-{
-    println!("Got bar message: {:?}", payload);
-}
-
 pub fn spawn_message_loop (callbacks: &Arc<RwLock<HashMap<String, CallbackType>>>, 
                            notifications: crossbeam_channel::Receiver<Notification>)
 {
@@ -53,7 +44,7 @@ impl Comm {
             callbacks: callbacks
         }
     }
-    pub fn subscribe<F: Send + Sync +'static + Fn(Arc<Vec<u8>>)>(&mut self, topic: String, callback: F)
+    pub fn subscribe<F: Send + Sync + 'static + Fn(Arc<Vec<u8>>)>(&mut self, topic: String, callback: F)
     {
         println!("Subscribng to {}", topic);
         let callbacks = self.callbacks.clone();
@@ -61,12 +52,21 @@ impl Comm {
         callbacks.insert(topic.clone(), Box::new(callback));
         self.client.subscribe(topic, QoS::AtLeastOnce).unwrap();
     }
-    
 }
 struct Application<'a> {
     comm: &'a mut Comm,
     shared_data: Arc<RwLock<i32>>
 }
+
+fn foo(payload: Arc<Vec<u8>>, shared: i32)
+{
+    println!("Got foo message: {:?}, {:?}", payload, shared);
+}
+fn bar(payload: Arc<Vec<u8>>)
+{
+    println!("Got bar message: {:?}", payload);
+}
+
 impl<'a> Application<'a> {
     pub fn new(comm: &'a mut Comm) -> Self
     {
